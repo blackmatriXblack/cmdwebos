@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cmdOS - Terminal CLI Reference</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#ccc;font-family:Consolas,'Courier New',monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+#term{display:flex;flex-direction:column;height:100vh;background:#0a0a0a}
+#titlebar{display:flex;align-items:center;padding:8px 16px;background:#1a1a1a;border-bottom:1px solid #333;-webkit-app-region:drag;user-select:none;flex-shrink:0}
+#titlebar .dots{display:flex;gap:8px;margin-right:16px}
+#titlebar .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+#titlebar .dot.r{background:#ff5f57}
+#titlebar .dot.y{background:#ffbd2e}
+#titlebar .dot.g{background:#28c840}
+#titlebar .ttl{color:#6a6;font-size:14px;font-weight:bold;letter-spacing:2px}
+#output{flex:1;overflow-y:auto;padding:16px;scroll-behavior:smooth;min-height:0}
+#output::-webkit-scrollbar{width:6px}
+#output::-webkit-scrollbar-track{background:#1a1a1a}
+#output::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+#output::-webkit-scrollbar-thumb:hover{background:#555}
+#inputbar{display:flex;align-items:center;padding:8px 16px;background:#111;border-top:1px solid #333;flex-shrink:0;position:relative}
+#inputbar .prompt{color:#6a6;font-weight:bold;margin-right:8px;white-space:nowrap;font-size:14px}
+#inputbar input{flex:1;background:transparent;border:none;color:#ccc;font-family:Consolas,'Courier New',monospace;font-size:14px;outline:none;caret-color:#6a6}
+#inputbar input::placeholder{color:#444}
+#autocomplete{position:absolute;bottom:100%;left:0;right:0;background:#1a1a1a;border:1px solid #333;border-bottom:none;max-height:300px;overflow-y:auto;display:none;z-index:100}
+#autocomplete .ac-item{padding:6px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;border-bottom:1px solid #222}
+#autocomplete .ac-item:hover,#autocomplete .ac-item.sel{background:#2a2a2a}
+#autocomplete .ac-item .ac-name{color:#fff;font-weight:bold}
+#autocomplete .ac-item .ac-os{font-size:11px;display:flex;gap:4px}
+.os-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:bold}
+.os-linux{background:rgba(255,215,0,0.15);color:#ffd700;border:1px solid rgba(255,215,0,0.3)}
+.os-windows{background:rgba(0,120,215,0.15);color:#0078d7;border:1px solid rgba(0,120,215,0.3)}
+.os-macos{background:rgba(180,120,255,0.15);color:#b478ff;border:1px solid rgba(180,120,255,0.3)}
+.oline{padding:2px 0;animation:fi 0.3s ease-out;line-height:1.6}
+.oline.welcome{margin-bottom:8px}
+@keyframes fi{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.oline .cmdname{font-size:22px;font-weight:bold;color:#fff;margin:8px 0 4px}
+.oline .cmdname .os-tags{display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle}
+.oline .synopsis{color:#999;border-left:3px solid #6a6;padding-left:12px;margin:4px 0 8px;font-size:13px}
+.oline .desc{color:#bbb;margin:4px 0 8px;font-size:13px;line-height:1.5}
+.oline .section-title{color:#6a6;font-weight:bold;margin:10px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:1px}
+.oline .detail{margin:4px 0 8px;font-size:13px;overflow-x:auto}
+.oline .detail table{width:100%;border-collapse:collapse;font-size:13px}
+.oline .detail table th{background:#1a1a1a;color:#6a6;padding:6px 10px;text-align:left;border:1px solid #333;font-weight:bold}
+.oline .detail table td{padding:4px 10px;border:1px solid #222;color:#bbb}
+.oline .detail table td code{color:#6a6;background:#111;padding:1px 4px;border-radius:2px;font-family:Consolas,'Courier New',monospace;font-size:12px}
+.oline .detail table tr:nth-child(even) td{background:#0d0d0d}
+.oline .detail table tr:hover td{background:#151515}
+.oline .examples{margin:4px 0 8px}
+.oline .examples .ex{color:#6a6;background:#111;padding:4px 10px;margin:2px 0;border-radius:3px;font-family:Consolas,'Courier New',monospace;font-size:13px;display:inline-block;border:1px solid #222}
+.oline .examples .ex::before{content:'$ ';color:#555}
+.oline .see{margin:4px 0 8px;display:flex;flex-wrap:wrap;gap:6px}
+.oline .see .see-tag{display:inline-block;padding:2px 10px;background:#1a1a1a;border:1px solid #333;color:#6a6;border-radius:12px;font-size:12px;cursor:pointer;transition:all 0.2s}
+.oline .see .see-tag:hover{background:#2a2a2a;border-color:#6a6}
+.cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin:8px 0}
+.cmd-card{background:#111;border:1px solid #222;border-radius:6px;padding:10px 14px;cursor:pointer;transition:all 0.2s;user-select:none}
+.cmd-card:hover{background:#1a1a1a;border-color:#6a6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.cmd-card .card-name{color:#fff;font-weight:bold;font-size:14px;margin-bottom:2px}
+.cmd-card .card-syn{color:#888;font-size:11px;margin-bottom:4px}
+.cmd-card .card-os{display:flex;gap:3px}
+.cmd-card .card-os .os-badge{font-size:9px;padding:0 4px}
+.oline .error{color:#ff5f57;padding:8px;border:1px solid rgba(255,95,87,0.3);border-radius:4px;background:rgba(255,95,87,0.05);margin:8px 0}
+.oline .error .suggest{color:#6a6;cursor:pointer;text-decoration:underline;margin:0 4px}
+.oline .error .suggest:hover{color:#8c8}
+.msg{color:#6a6;font-style:italic}
+.popular-title{color:#6a6;font-weight:bold;font-size:14px;margin:12px 0 8px}
+.info-line{color:#555;font-size:12px;margin-bottom:8px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="term">
+<div id="titlebar">
+<div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+<span class="ttl">cmdOS</span>
+</div>
+<div id="output"></div>
+<div id="inputbar">
+<span class="prompt">cmdos&gt;</span>
+<input type="text" id="input" placeholder="ask a question or type a command..." autofocus spellcheck="false" autocomplete="off">
+<div id="autocomplete"></div>
+</div>
+</div>
+<script>
+const C=[
+{n:"ls",o:["linux","macos"],s:"List directory contents",
+d:"Lists information about files and directories. Supports various options to control output format, sorting, and filtering. One of the most frequently used commands.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-l</code></td><td>Use long listing format with permissions, owner, size, date</td></tr>
+<tr><td><code>-a</code></td><td>Show all files including hidden ones starting with dot</td></tr>
+<tr><td><code>-h</code></td><td>Human-readable file sizes (KB, MB, GB)</td></tr>
+<tr><td><code>-R</code></td><td>Recursively list subdirectories</td></tr>
+<tr><td><code>-S</code></td><td>Sort by file size descending</td></tr>
+<tr><td><code>-t</code></td><td>Sort by modification time newest first</td></tr>
+<tr><td><code>-r</code></td><td>Reverse sort order</td></tr>
+<tr><td><code>-1</code></td><td>List one file per line</td></tr></table>`,
+e:["ls -la","ls -lh *.txt","ls -R /home","ls -ltSr"],
+r:["dir","find","locate"],
+k:["list","files","directory","contents","folder","listing"]},
+{n:"dir",o:["windows"],s:"List directory contents (Windows)",
+d:"Displays a list of files and subdirectories in a directory. The Windows equivalent of ls with different flag conventions and output format.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>/A</code></td><td>Show files with specified attributes (H=hidden, S=system, D=directories)</td></tr>
+<tr><td><code>/B</code></td><td>Bare format with no heading or summary</td></tr>
+<tr><td><code>/S</code></td><td>Recursively list files in subdirectories</td></tr>
+<tr><td><code>/O</code></td><td>Sort by specified order (N=name, S=size, E=extension, D=date)</td></tr>
+<tr><td><code>/W</code></td><td>Wide list format in columns</td></tr>
+<tr><td><code>/Q</code></td><td>Display file owner</td></tr></table>`,
+e:["dir","dir /B","dir /S /B *.exe","dir /O:S /A:-H"],
+r:["ls","Get-ChildItem"],
+k:["list","directory","windows","files","folder","contents"]},
+{n:"cd",o:["linux","windows","macos"],s:"Change current directory",
+d:"Changes the current working directory to the specified path. Supports absolute paths, relative paths, and special references like .. (parent) and ~ (home).",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>~</code></td><td>Change to user's home directory</td></tr>
+<tr><td><code>-</code></td><td>Change to the previous directory</td></tr>
+<tr><td><code>..</code></td><td>Move up one directory level</td></tr>
+<tr><td><code>.</code></td><td>Current directory (no change)</td></tr></table>`,
+e:["cd /var/log","cd ~/Documents","cd ..","cd -"],
+r:["pwd","pushd","popd"],
+k:["change","directory","folder","navigate","path","current"]},
+{n:"pwd",o:["linux","macos"],s:"Print working directory",
+d:"Outputs the full absolute path of the current working directory. Useful in scripts and navigation to confirm your current location in the filesystem.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-L</code></td><td>Use logical path (ignores symlinks, default)</td></tr>
+<tr><td><code>-P</code></td><td>Print physical path resolving symlinks</td></tr></table>`,
+e:["pwd","pwd -P"],
+r:["cd"],
+k:["print","working","directory","path","current","location"]},
+{n:"mkdir",o:["linux","windows","macos"],s:"Create directories",
+d:"Creates one or more directories with the specified names. Can create parent directories and set permissions in one command.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-p</code></td><td>Create parent directories as needed, no error if exists</td></tr>
+<tr><td><code>-v</code></td><td>Print message for each created directory</td></tr>
+<tr><td><code>-m</code></td><td>Set file mode (permissions) for the new directory</td></tr></table>`,
+e:["mkdir newproject","mkdir -p a/b/c/d","mkdir -m 755 public","mkdir dir1 dir2 dir3"],
+r:["rmdir"],
+k:["create","directory","folder","make","new"]},
+{n:"rm",o:["linux","windows","macos"],s:"Remove files or directories",
+d:"Deletes files and directories permanently. Use with extreme caution as deleted files are typically not recoverable through normal means.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-r</code></td><td>Remove directories and their contents recursively</td></tr>
+<tr><td><code>-f</code></td><td>Force removal without prompting, ignore nonexistent files</td></tr>
+<tr><td><code>-i</code></td><td>Prompt before each removal</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, show what is being removed</td></tr>
+<tr><td><code>--rf</code></td><td>Common combination: recursive force</td></tr></table>`,
+e:["rm file.txt","rm -rf oldproject","rm -i *.tmp","rm -rf /tmp/cache/*"],
+r:["rmdir","shred"],
+k:["remove","delete","file","directory","unlink"]},
+{n:"cp",o:["linux","macos"],s:"Copy files and directories",
+d:"Copies files and directories from one location to another. Supports recursive copying, preservation of attributes, and interactive mode with many options for advanced file duplication.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-r</code></td><td>Copy directories recursively</td></tr>
+<tr><td><code>-i</code></td><td>Prompt before overwriting existing files</td></tr>
+<tr><td><code>-p</code></td><td>Preserve file attributes (mode, ownership, timestamps)</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, show files being copied</td></tr>
+<tr><td><code>-u</code></td><td>Copy only when source is newer than destination</td></tr>
+<tr><td><code>-a</code></td><td>Archive mode, recursive with preservation of all attributes</td></tr></table>`,
+e:["cp file.txt backup.txt","cp -r project/ backup/","cp -a ~/src /dst","cp -i *.html /var/www/"],
+r:["mv","rsync","scp"],
+k:["copy","duplicate","backup","file","directory"]},
+{n:"mv",o:["linux","windows","macos"],s:"Move or rename files",
+d:"Moves files and directories from one location to another, or renames them in place. If the source and destination are on the same filesystem, the operation is fast and atomic.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-i</code></td><td>Prompt before overwriting existing files</td></tr>
+<tr><td><code>-f</code></td><td>Force overwrite without prompting</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, show files being moved</td></tr>
+<tr><td><code>-n</code></td><td>Do not overwrite an existing file</td></tr></table>`,
+e:["mv file.txt newname.txt","mv *.log /var/log/","mv -i source dest","mv /old/path /new/path"],
+r:["cp","rename"],
+k:["move","rename","file","directory","relocate"]},
+{n:"find",o:["linux","macos"],s:"Search for files in directory hierarchy",
+d:"Recursively searches for files and directories matching specified criteria including name, type, size, permissions, and modification time. Extremely powerful for file system queries.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-name</code></td><td>Match filename pattern (use quotes for glob)</td></tr>
+<tr><td><code>-type</code></td><td>Filter by type: f (file), d (directory), l (symlink)</td></tr>
+<tr><td><code>-size</code></td><td>Filter by file size (+100M for larger, -1K for smaller)</td></tr>
+<tr><td><code>-mtime</code></td><td>Filter by modification time in days (+7 for older than 7 days)</td></tr>
+<tr><td><code>-exec</code></td><td>Execute a command on each found file</td></tr>
+<tr><td><code>-delete</code></td><td>Delete all found files</td></tr></table>`,
+e:["find . -name '*.txt'","find /var -type f -size +100M","find . -mtime -7","find . -name '*.log' -exec rm {} ;"],
+r:["locate","grep"],
+k:["search","find","file","directory","locate","recursive"]},
+{n:"locate",o:["linux","macos"],s:"Find files by name using a database",
+d:"Quickly searches for files using a pre-built database index, making it much faster than find for name-based searches. The database must be updated periodically with updatedb.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-i</code></td><td>Case-insensitive search</td></tr>
+<tr><td><code>-c</code></td><td>Show count of matching entries instead of listing them</td></tr>
+<tr><td><code>-l</code></td><td>Limit output to N entries</td></tr>
+<tr><td><code>-r</code></td><td>Use regex pattern for matching</td></tr></table>`,
+e:["locate myfile.txt","locate -i readme","locate -l 10 '*.conf'","locate -r '\.py$'"],
+r:["find","updatedb"],
+k:["search","locate","find","file","database","fast"]},
+{n:"grep",o:["linux","macos"],s:"Search text with regular expressions",
+d:"Searches file contents for lines matching a pattern using regular expressions. One of the most powerful text processing tools, essential for log analysis and code searching.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-i</code></td><td>Case-insensitive matching</td></tr>
+<tr><td><code>-r</code></td><td>Recursively search directories</td></tr>
+<tr><td><code>-n</code></td><td>Show line numbers with matches</td></tr>
+<tr><td><code>-c</code></td><td>Show count of matching lines per file</td></tr>
+<tr><td><code>-v</code></td><td>Invert match, show non-matching lines</td></tr>
+<tr><td><code>-l</code></td><td>Show only filenames with matches</td></tr>
+<tr><td><code>-E</code></td><td>Extended regex support</td></tr>
+<tr><td><code>-w</code></td><td>Match whole words only</td></tr></table>`,
+e:["grep 'error' log.txt","grep -rn 'TODO' src/","grep -i 'warning' *.log","grep -c 'failed' access.log"],
+r:["awk","sed","find","Select-String"],
+k:["search","text","pattern","regex","regular expression","find","filter","log"]},
+{n:"awk",o:["linux","macos"],s:"Pattern scanning and text processing language",
+d:"A powerful text processing tool and scripting language for field-based operations on structured text. Excellent for processing log files, CSV data, and report generation with pattern matching.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-F</code></td><td>Specify input field separator (default whitespace)</td></tr>
+<tr><td><code>-v</code></td><td>Assign a variable before execution</td></tr>
+<tr><td><code>-f</code></td><td>Read program from file instead of inline</td></tr>
+<tr><td><code>-i</code></td><td>Use specific character for inplace editing</td></tr></table>`,
+e:["awk '{print $1,$3}' data.txt","awk -F',' '{sum+=$3} END{print sum}' data.csv","awk '/error/ {print NR,$0}' log.txt","awk '$4 > 1000 {print $1,$4}' access.log"],
+r:["sed","grep","cut"],
+k:["text","processing","pattern","scan","field","column","csv","report"]},
+{n:"sed",o:["linux","macos"],s:"Stream editor for text transformation",
+d:"A stream editor for performing basic text transformations on an input stream. Supports substitution, deletion, insertion, and more complex text manipulation using regular expressions.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-i</code></td><td>Edit files in-place (backup with -i.bak)</td></tr>
+<tr><td><code>-n</code></td><td>Suppress automatic printing of pattern space</td></tr>
+<tr><td><code>-e</code></td><td>Add expression to the script commands</td></tr>
+<tr><td><code>-r</code></td><td>Use extended regular expressions</td></tr></table>`,
+e:["sed 's/old/new/g' file.txt","sed -i 's/foo/bar/g' config.txt","sed -n '/error/p' log.txt","sed '1,10d' file.txt"],
+r:["awk","grep","tr"],
+k:["stream","editor","replace","substitute","text","transform","regex"]},
+{n:"chmod",o:["linux","macos"],s:"Change file permissions",
+d:"Changes the file mode (permissions) for files and directories. Supports both symbolic (u+x) and numeric (755) permission notations for read, write, and execute permissions.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-R</code></td><td>Recursively change permissions of directories</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, show changes made</td></tr>
+<tr><td><code>-c</code></td><td>Report only when a change is made</td></tr>
+<tr><td><code>--ref</code></td><td>Use permissions from reference file</td></tr></table>`,
+e:["chmod +x script.sh","chmod 755 public/","chmod -R 644 *.html","chmod u=rwx,g=rx,o=r file"],
+r:["chown","umask"],
+k:["permissions","mode","access","chmod","file","security","owner"]},
+{n:"chown",o:["linux","macos"],s:"Change file owner and group",
+d:"Changes the ownership of files and directories to a specified user and/or group. Requires superuser privileges for changing the owner or group on most systems.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-R</code></td><td>Recursively change ownership of directories</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, show changes made</td></tr>
+<tr><td><code>--ref</code></td><td>Use ownership from reference file</td></tr></table>`,
+e:["chown user:group file.txt","chown -R user /home/user","chown user: file.txt","chown :group file.txt"],
+r:["chmod","user","group"],
+k:["owner","group","change","user","permissions","file"]},
+{n:"ssh",o:["linux","macos"],s:"Secure Shell remote login",
+d:"Connects to a remote machine securely using the SSH protocol. Provides encrypted communication for remote shell access, command execution, and secure file transfer with related tools.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-p</code></td><td>Specify port number (default 22)</td></tr>
+<tr><td><code>-i</code></td><td>Use specified identity file (private key)</td></tr>
+<tr><td><code>-v</code></td><td>Verbose mode for debugging connection</td></tr>
+<tr><td><code>-L</code></td><td>Local port forwarding tunnel</td></tr>
+<tr><td><code>-R</code></td><td>Remote port forwarding tunnel</td></tr>
+<tr><td><code>-N</code></td><td>Do not execute remote command (port forward only)</td></tr></table>`,
+e:["ssh user@hostname","ssh -p 2222 user@host","ssh -i key.pem user@host","ssh -L 8080:localhost:80 user@host"],
+r:["scp","openssl","ssh-keygen"],
+k:["remote","login","secure","shell","ssh","connect","server"]},
+{n:"scp",o:["linux","macos"],s:"Secure copy files over SSH",
+d:"Copies files between local and remote hosts over the SSH protocol. Uses the same authentication and security as SSH, making it ideal for secure file transfers across networks.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-P</code></td><td>Specify port (note: uppercase P, unlike SSH lowercase)</td></tr>
+<tr><td><code>-r</code></td><td>Recursively copy directories</td></tr>
+<tr><td><code>-p</code></td><td>Preserve file modification and access times</td></tr>
+<tr><td><code>-i</code></td><td>Use specified identity file</td></tr>
+<tr><td><code>-C</code></td><td>Enable compression for faster transfer</td></tr></table>`,
+e:["scp file.txt user@host:/path/","scp -r project/ user@host:/backup/","scp user@host:/remote/file.txt ."],
+r:["ssh","rsync","cp"],
+k:["copy","secure","remote","ssh","transfer","file"]},
+{n:"git",o:["linux","windows","macos"],s:"Distributed version control system",
+d:"A distributed version control system for tracking changes in source code during development. Supports branching, merging, collaboration, and integration with remote repositories on platforms like GitHub and GitLab.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>init</code></td><td>Initialize a new Git repository</td></tr>
+<tr><td><code>clone</code></td><td>Clone an existing repository from remote</td></tr>
+<tr><td><code>add</code></td><td>Stage changes for commit</td></tr>
+<tr><td><code>commit</code></td><td>Commit staged changes with a message</td></tr>
+<tr><td><code>push</code></td><td>Push commits to remote repository</td></tr>
+<tr><td><code>pull</code></td><td>Pull changes from remote repository</td></tr>
+<tr><td><code>branch</code></td><td>List, create, or delete branches</td></tr>
+<tr><td><code>merge</code></td><td>Merge branches together</td></tr>
+<tr><td><code>log</code></td><td>Show commit history</td></tr>
+<tr><td><code>diff</code></td><td>Show changes between commits or working tree</td></tr></table>`,
+e:["git init","git clone https://github.com/user/repo.git","git add . && git commit -m 'message'","git push origin main"],
+r:["svn","hg"],
+k:["version","control","git","repository","commit","branch","merge","clone"]},
+{n:"docker",o:["linux","windows","macos"],s:"Container management platform",
+d:"A platform for developing, shipping, and running applications in containers. Containers package software with all dependencies for consistent execution across different environments.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>run</code></td><td>Run a command in a new container</td></tr>
+<tr><td><code>ps</code></td><td>List running containers</td></tr>
+<tr><td><code>images</code></td><td>List Docker images</td></tr>
+<tr><td><code>build</code></td><td>Build an image from a Dockerfile</td></tr>
+<tr><td><code>pull</code></td><td>Pull an image from a registry</td></tr>
+<tr><td><code>push</code></td><td>Push an image to a registry</td></tr>
+<tr><td><code>exec</code></td><td>Run a command in a running container</td></tr>
+<tr><td><code>logs</code></td><td>Fetch logs from a container</td></tr>
+<tr><td><code>compose</code></td><td>Define multi-container apps in YAML</td></tr>
+<tr><td><code>volume</code></td><td>Manage persistent storage volumes</td></tr></table>`,
+e:["docker run -it ubuntu bash","docker ps -a","docker build -t myapp .","docker-compose up -d"],
+r:["kubectl","podman","vagrant"],
+k:["container","docker","image","deploy","microservice","devops"]},
+{n:"kubectl",o:["linux","windows","macos"],s:"Kubernetes cluster management",
+d:"Command-line tool for controlling Kubernetes clusters. Deploys applications, inspects resources, manages pods and services, and scales containerized workloads across cluster nodes.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>get</code></td><td>List resources (pods, services, deployments, nodes)</td></tr>
+<tr><td><code>describe</code></td><td>Show detailed information about a resource</td></tr>
+<tr><td><code>logs</code></td><td>View pod container logs</td></tr>
+<tr><td><code>exec</code></td><td>Execute command in a container</td></tr>
+<tr><td><code>apply</code></td><td>Apply configuration from a file</td></tr>
+<tr><td><code>delete</code></td><td>Delete resources</td></tr>
+<tr><td><code>port-forward</code></td><td>Forward local port to pod</td></tr>
+<tr><td><code>config</code></td><td>Modify kubeconfig settings</td></tr></table>`,
+e:["kubectl get pods","kubectl describe deployment myapp","kubectl logs -f pod-name","kubectl apply -f deployment.yaml"],
+r:["docker","helm","minikube"],
+k:["kubernetes","k8s","container","orchestration","cluster","pod","deploy"]},
+{n:"ping",o:["linux","windows","macos"],s:"Test network connectivity",
+d:"Sends ICMP echo requests to a host to test network connectivity and measure round-trip time. Essential for basic network troubleshooting and latency measurement across IP networks.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-c</code></td><td>Stop after sending N packets (Linux/macOS)</td></tr>
+<tr><td><code>-n</code></td><td>Ping count (Windows)</td></tr>
+<tr><td><code>-i</code></td><td>Interval between packets in seconds</td></tr>
+<tr><td><code>-s</code></td><td>Packet size in bytes</td></tr>
+<tr><td><code>-t</code></td><td>Ping continuously until stopped (Windows)</td></tr></table>`,
+e:["ping google.com","ping -c 4 8.8.8.8","ping -s 1500 example.com"],
+r:["curl","traceroute","nmap","netstat"],
+k:["ping","network","connectivity","test","latency","icmp","host"]},
+{n:"curl",o:["linux","windows","macos"],s:"Transfer data with URLs",
+d:"A command-line tool for transferring data using various network protocols. Supports HTTP, HTTPS, FTP, and many others, making it essential for API testing, file downloads, and web automation.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-X</code></td><td>HTTP method (GET, POST, PUT, DELETE)</td></tr>
+<tr><td><code>-H</code></td><td>Add custom header</td></tr>
+<tr><td><code>-d</code></td><td>Send data in POST/PUT request</td></tr>
+<tr><td><code>-o</code></td><td>Output to file instead of stdout</td></tr>
+<tr><td><code>-L</code></td><td>Follow redirects</td></tr>
+<tr><td><code>-k</code></td><td>Allow insecure SSL connections</td></tr>
+<tr><td><code>-u</code></td><td>Basic authentication user:password</td></tr></table>`,
+e:["curl https://api.example.com","curl -X POST -d 'data' https://api.example.com","curl -o file.zip https://example.com/file.zip","curl -H 'Authorization: Bearer token' https://api.example.com"],
+r:["wget","ping","httpie"],
+k:["http","url","transfer","api","download","request","web","rest"]},
+{n:"wget",o:["linux","macos"],s:"Download files from the web",
+d:"A non-interactive network downloader for retrieving files from HTTP, HTTPS, and FTP servers. Supports recursive downloads, resuming interrupted transfers, and batch file downloading.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-O</code></td><td>Save with specified filename</td></tr>
+<tr><td><code>-c</code></td><td>Resume incomplete download</td></tr>
+<tr><td><code>-r</code></td><td>Recursively download linked resources</td></tr>
+<tr><td><code>-q</code></td><td>Quiet mode, suppress output</td></tr>
+<tr><td><code>-P</code></td><td>Save files to specified directory</td></tr></table>`,
+e:["wget https://example.com/file.zip","wget -c https://example.com/large.iso","wget -r -l 2 https://docs.example.com"],
+r:["curl","aria2c"],
+k:["download","wget","web","http","ftp","recursive","file"]},
+{n:"tar",o:["linux","macos"],s:"Archive and compress files",
+d:"Creates and extracts archive files in tar format. Often combined with compression filters like gzip or bzip2 to create .tar.gz or .tar.bz2 archives for backup and distribution.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-c</code></td><td>Create a new archive</td></tr>
+<tr><td><code>-x</code></td><td>Extract files from archive</td></tr>
+<tr><td><code>-z</code></td><td>Filter through gzip compression</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, list processed files</td></tr>
+<tr><td><code>-f</code></td><td>Use archive file (must be last flag before filename)</td></tr>
+<tr><td><code>-t</code></td><td>List contents of archive</td></tr>
+<tr><td><code>-j</code></td><td>Filter through bzip2 compression</td></tr></table>`,
+e:["tar -czf archive.tar.gz /path/to/files","tar -xzf archive.tar.gz","tar -tf archive.tar","tar -xvf archive.tar -C /target/dir"],
+r:["gzip","zip","unzip"],
+k:["archive","compress","tar","backup","gzip","extract"]},
+{n:"gzip",o:["linux","macos"],s:"Compress files with GNU zip",
+d:"Compresses files using the Lempel-Ziv coding (LZ77) algorithm. Typically reduces file sizes significantly and is commonly used for log rotation, backup, and general file compression.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-d</code></td><td>Decompress (equivalent to gunzip)</td></tr>
+<tr><td><code>-k</code></td><td>Keep original file (do not delete input)</td></tr>
+<tr><td><code>-r</code></td><td>Recursively compress files in directories</td></tr>
+<tr><td><code>-v</code></td><td>Verbose, show compression ratios</td></tr>
+<tr><td><code>-1 to -9</code></td><td>Compression level (1=fast, 9=best)</td></tr></table>`,
+e:["gzip file.txt","gzip -d file.txt.gz","gzip -9 largefile.tar","gzip -k important.txt"],
+r:["tar","gunzip","zip"],
+k:["compress","gzip","zip","archive","file","size"]},
+{n:"zip",o:["linux","windows","macos"],s:"Package and compress files as ZIP",
+d:"Creates ZIP archive files compatible with the popular compression format. Supports compression, encryption, multi-volume archives, and cross-platform compatibility for file distribution.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-r</code></td><td>Recursively include directories</td></tr>
+<tr><td><code>-e</code></td><td>Encrypt archive with password</td></tr>
+<tr><td><code>-d</code></td><td>Delete entries from archive</td></tr>
+<tr><td><code>-m</code></td><td>Move files into archive (delete originals)</td></tr>
+<tr><td><code>-s</code></td><td>Split archive into specified size parts</td></tr></table>`,
+e:["zip archive.zip file1.txt file2.txt","zip -r project.zip /path/to/project","zip -e secret.zip confidential.docx","zip -s 100m split.zip largefile.iso"],
+r:["unzip","gzip","tar"],
+k:["compress","zip","archive","package","file","windows"]},
+{n:"unzip",o:["linux","windows","macos"],s:"Extract ZIP archives",
+d:"Extracts files from ZIP archives, preserving directory structure and file attributes. Supports selective extraction, listing contents, and password-protected archives.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-l</code></td><td>List contents without extracting</td></tr>
+<tr><td><code>-d</code></td><td>Extract to specified directory</td></tr>
+<tr><td><code>-o</code></td><td>Overwrite files without prompting</td></tr>
+<tr><td><code>-P</code></td><td>Provide password for encrypted archive</td></tr>
+<tr><td><code>-n</code></td><td>Never overwrite existing files</td></tr></table>`,
+e:["unzip archive.zip","unzip archive.zip -d /target/dir","unzip -l archive.zip","unzip -o archive.zip"],
+r:["zip","gzip","tar"],
+k:["extract","unzip","zip","archive","decompress"]},
+{n:"man",o:["linux","macos"],s:"Display system manual pages",
+d:"Displays the system manual pages for commands, system calls, libraries, and file formats. The primary documentation resource on Unix-like systems, organized into numbered sections.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-k</code></td><td>Search manual page names and descriptions (same as apropos)</td></tr>
+<tr><td><code>-f</code></td><td>Show short description (same as whatis)</td></tr>
+<tr><td><code>-w</code></td><td>Show file location of manual page</td></tr>
+<tr><td><code>-s</code></td><td>Search only specified section (1-8)</td></tr></table>`,
+e:["man ls","man -k keyword","man 3 printf","man -f grep"],
+r:["help","whatis","info"],
+k:["manual","help","documentation","man","pages"]},
+{n:"echo",o:["linux","windows","macos"],s:"Print text to standard output",
+d:"Outputs the specified text to the terminal. Commonly used in shell scripts to display messages, generate output, and write to files through redirection.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-n</code></td><td>Do not output trailing newline</td></tr>
+<tr><td><code>-e</code></td><td>Enable interpretation of escape sequences (\\n, \\t, etc.)</td></tr>
+<tr><td><code>-E</code></td><td>Disable interpretation of escape sequences (default)</td></tr></table>`,
+e:["echo 'Hello World'","echo -e 'Line1\\nLine2'","echo $HOME","echo 'Text' > file.txt"],
+r:["cat","printf"],
+k:["print","echo","output","display","text","terminal"]},
+{n:"cat",o:["linux","macos"],s:"Concatenate and display files",
+d:"Reads files sequentially and outputs their contents to standard output. Used for viewing file contents, combining files, and creating new files through redirection.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-n</code></td><td>Number all output lines</td></tr>
+<tr><td><code>-b</code></td><td>Number non-blank lines</td></tr>
+<tr><td><code>-s</code></td><td>Squeeze multiple blank lines into one</td></tr>
+<tr><td><code>-E</code></td><td>Show $ at end of each line</td></tr></table>`,
+e:["cat file.txt","cat file1.txt file2.txt > combined.txt","cat -n script.sh","cat > newfile.txt << EOF"],
+r:["less","head","tail","echo"],
+k:["concatenate","display","file","view","read","output"]},
+{n:"less",o:["linux","macos"],s:"View file contents with scrolling",
+d:"A terminal pager for viewing file contents interactively with forward and backward scrolling. Supports search, navigation, and various display options for large files.",
+t:`<table><tr><th>Key</th><th>Description</th></tr>
+<tr><td><code>/pattern</code></td><td>Search forward for pattern</td></tr>
+<tr><td><code>?pattern</code></td><td>Search backward for pattern</td></tr>
+<tr><td><code>q</code></td><td>Quit the pager</td></tr>
+<tr><td><code>g</code></td><td>Go to first line</td></tr>
+<tr><td><code>G</code></td><td>Go to last line</td></tr>
+<tr><td><code>-N</code></td><td>Show line numbers</td></tr></table>`,
+e:["less file.txt","less -N log.txt","less +F /var/log/syslog"],
+r:["more","cat","head","tail"],
+k:["view","scroll","pager","file","read","browse"]},
+{n:"head",o:["linux","macos"],s:"Display first lines of files",
+d:"Outputs the first part of files, defaulting to the first 10 lines. Useful for quickly previewing file contents, examining headers, and sampling log files.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-n</code></td><td>Number of lines to display (default 10)</td></tr>
+<tr><td><code>-c</code></td><td>Number of bytes to display</td></tr>
+<tr><td><code>-q</code></td><td>Suppress filename headers when multiple files</td></tr></table>`,
+e:["head -n 20 file.txt","head -c 100 data.bin","head *.csv -n 1"],
+r:["tail","less","cat"],
+k:["head","first","lines","preview","file","top"]},
+{n:"tail",o:["linux","macos"],s:"Display last lines of files",
+d:"Outputs the last part of files, defaulting to the last 10 lines. Essential for monitoring log files in real-time with the follow flag for new entries.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-n</code></td><td>Number of lines to display (default 10)</td></tr>
+<tr><td><code>-f</code></td><td>Follow file for new content in real-time</td></tr>
+<tr><td><code>-c</code></td><td>Number of bytes to display</td></tr>
+<tr><td><code>-F</code></td><td>Follow with retry (for rotating logs)</td></tr></table>`,
+e:["tail -n 20 file.txt","tail -f /var/log/syslog","tail -F /var/log/nginx/access.log"],
+r:["head","less","cat"],
+k:["tail","last","lines","end","follow","log","monitor"]},
+{n:"wc",o:["linux","macos"],s:"Count lines, words, and bytes",
+d:"Counts the number of lines, words, characters, and bytes in files or standard input. A simple but essential tool for text statistics and data analysis in pipelines.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-l</code></td><td>Count only lines</td></tr>
+<tr><td><code>-w</code></td><td>Count only words</td></tr>
+<tr><td><code>-c</code></td><td>Count only bytes</td></tr>
+<tr><td><code>-m</code></td><td>Count only characters</td></tr></table>`,
+e:["wc file.txt","wc -l file.txt","wc -w document.txt","cat file.txt | wc -l"],
+r:["sort","uniq"],
+k:["count","lines","words","bytes","statistics","text"]},
+{n:"sort",o:["linux","macos"],s:"Sort lines of text files",
+d:"Sorts lines of text files in specified order. Supports numeric sorting, reverse order, sorting by fields, and dictionary order for comprehensive text data organization.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-n</code></td><td>Numeric sort instead of alphabetic</td></tr>
+<tr><td><code>-r</code></td><td>Reverse sort order</td></tr>
+<tr><td><code>-k</code></td><td>Sort by specified field/column</td></tr>
+<tr><td><code>-u</code></td><td>Unique, output only first of identical lines</td></tr>
+<tr><td><code>-t</code></td><td>Specify field separator</td></tr></table>`,
+e:["sort file.txt","sort -n numbers.txt","sort -t',' -k2 data.csv","sort -u list.txt"],
+r:["uniq","cut","awk"],
+k:["sort","order","arrange","file","text","lines"]},
+{n:"uniq",o:["linux","macos"],s:"Report or omit repeated lines",
+d:"Filters adjacent duplicate lines from sorted input, showing only unique entries. Typically used after sort to find distinct values or count duplicate occurrences in datasets.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-c</code></td><td>Prefix lines with count of occurrences</td></tr>
+<tr><td><code>-d</code></td><td>Show only duplicated lines</td></tr>
+<tr><td><code>-u</code></td><td>Show only unique (non-duplicated) lines</td></tr>
+<tr><td><code>-i</code></td><td>Case-insensitive comparison</td></tr></table>`,
+e:["sort file.txt | uniq","sort file.txt | uniq -c","sort file.txt | uniq -d","uniq -i sorted.txt"],
+r:["sort","wc","awk"],
+k:["unique","duplicate","distinct","count","lines","text"]},
+{n:"cut",o:["linux","macos"],s:"Remove sections from each line",
+d:"Extracts specified fields or character ranges from each line of input. Commonly used to parse structured text files like CSV and log files by selecting columns or character positions.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-f</code></td><td>Select fields by number (using delimiter)</td></tr>
+<tr><td><code>-d</code></td><td>Specify field delimiter (default tab)</td></tr>
+<tr><td><code>-c</code></td><td>Select characters by position range</td></tr>
+<tr><td><code>-s</code></td><td>Suppress lines without delimiter</td></tr></table>`,
+e:["cut -f1,3 -d',' data.csv","cut -c1-10 file.txt","cut -d: -f1 /etc/passwd"],
+r:["awk","sed","sort"],
+k:["cut","fields","columns","delimiter","extract","text"]},
+{n:"tr",o:["linux","macos"],s:"Translate or delete characters",
+d:"Translates, squeezes, or deletes characters from standard input. Useful for character case conversion, removing unwanted characters, and simple text substitutions in pipelines.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-d</code></td><td>Delete specified characters</td></tr>
+<tr><td><code>-s</code></td><td>Squeeze repeated characters into single</td></tr>
+<tr><td><code>-c</code></td><td>Use complement of specified characters</td></tr></table>`,
+e:["echo 'hello' | tr a-z A-Z","echo 'hello world' | tr -d ' '","cat file.txt | tr -s '\\n'"],
+r:["sed","awk"],
+k:["translate","characters","replace","case","convert","delete"]},
+{n:"tee",o:["linux","macos"],s:"Read from stdin and write to stdout and files",
+d:"Reads from standard input and writes to both standard output and one or more files simultaneously. Useful for capturing command output while still viewing it in real-time.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-a</code></td><td>Append to file instead of overwriting</td></tr>
+<tr><td><code>-i</code></td><td>Ignore interrupt signals</td></tr></table>`,
+e:["echo 'data' | tee output.txt","command | tee -a log.txt","echo 'config' | tee file1.txt file2.txt"],
+r:["cat","echo","redirect"],
+k:["tee","split","redirect","output","file","pipe"]},
+{n:"xargs",o:["linux","macos"],s:"Build and execute command lines",
+d:"Reads items from standard input and executes a command for each item. Essential for batch processing files, parallel execution, and chaining commands that don't accept piped input directly.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-n</code></td><td>Maximum number of arguments per command</td></tr>
+<tr><td><code>-P</code></td><td>Run up to N processes in parallel</td></tr>
+<tr><td><code>-I</code></td><td>Replace string in command with input</td></tr>
+<tr><td><code>-0</code></td><td>Input items are null-separated</td></tr></table>`,
+e:["find . -name '*.txt' | xargs rm","cat urls.txt | xargs -n1 curl -O","echo 'file1 file2' | xargs -I{} mv {} /backup/"],
+r:["find","parallel"],
+k:["xargs","execute","pipe","arguments","batch","parallel"]},
+{n:"ps",o:["linux","macos"],s:"Report process status",
+d:"Displays information about running processes including PID, CPU and memory usage, and command name. Essential for system monitoring, process management, and troubleshooting.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-e</code></td><td>Show all processes (every process)</td></tr>
+<tr><td><code>-f</code></td><td>Full format listing with additional details</td></tr>
+<tr><td><code>-u</code></td><td>Show processes for specific user</td></tr>
+<tr><td><code>-aux</code></td><td>All processes with user info (BSD syntax)</td></tr>
+<tr><td><code>-ef</code></td><td>All processes in full format</td></tr></table>`,
+e:["ps aux","ps -ef","ps -u username","ps aux --sort=-%mem"],
+r:["top","kill","killall"],
+k:["process","status","running","pid","system","monitor"]},
+{n:"top",o:["linux","macos"],s:"Display running processes (real-time)",
+d:"Provides a real-time, dynamic view of running processes sorted by CPU or memory usage. Shows system summary including uptime, load average, memory, and swap utilization.",
+t:`<table><tr><th>Key</th><th>Description</th></tr>
+<tr><td><code>P</code></td><td>Sort by CPU usage</td></tr>
+<tr><td><code>M</code></td><td>Sort by memory usage</td></tr>
+<tr><td><code>k</code></td><td>Kill a process (enter PID)</td></tr>
+<tr><td><code>q</code></td><td>Quit</td></tr>
+<tr><td><code>1</code></td><td>Toggle per-CPU statistics</td></tr>
+<tr><td><code>-b</code></td><td>Batch mode for output capture</td></tr>
+<tr><td><code>-n</code></td><td>Number of iterations in batch mode</td></tr></table>`,
+e:["top","top -b -n 1","top -u username","htop"],
+r:["ps","htop","free"],
+k:["process","top","cpu","memory","monitor","real-time","system"]},
+{n:"kill",o:["linux","macos"],s:"Send signal to a process",
+d:"Sends a signal to a process by PID, most commonly to terminate processes. Supports various signals including SIGTERM (15), SIGKILL (9), SIGHUP (1), and SIGSTOP (19).",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-l</code></td><td>List all available signal names</td></tr>
+<tr><td><code>-s</code></td><td>Specify signal by name or number</td></tr>
+<tr><td><code>-1</code></td><td>SIGHUP - hangup / reload configuration</td></tr>
+<tr><td><code>-9</code></td><td>SIGKILL - force kill (cannot be caught)</td></tr>
+<tr><td><code>-15</code></td><td>SIGTERM - graceful termination (default)</td></tr></table>`,
+e:["kill 1234","kill -9 1234","kill -HUP 1234","kill -l"],
+r:["killall","ps","top"],
+k:["kill","process","pid","signal","terminate","stop"]},
+{n:"killall",o:["linux","macos"],s:"Kill processes by name",
+d:"Sends signals to all processes matching a specified name. Useful for killing multiple instances of the same program, like stopping all running nginx or apache processes at once.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-9</code></td><td>SIGKILL - force kill</td></tr>
+<tr><td><code>-i</code></td><td>Interactive, ask for confirmation before killing</td></tr>
+<tr><td><code>-u</code></td><td>Kill only processes owned by specified user</td></tr>
+<tr><td><code>-r</code></td><td>Interpret process name as regex pattern</td></tr></table>`,
+e:["killall firefox","killall -9 python","killall -i nginx","killall -u user chrome"],
+r:["kill","ps","pkill"],
+k:["kill","process","name","signal","terminate"]},
+{n:"df",o:["linux","macos"],s:"Report filesystem disk space usage",
+d:"Displays information about mounted filesystems including total size, used and available space, and mount points. Essential for monitoring disk utilization and planning storage capacity.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-h</code></td><td>Human-readable sizes (GB, MB, etc.)</td></tr>
+<tr><td><code>-T</code></td><td>Show filesystem type</td></tr>
+<tr><td><code>-i</code></td><td>Show inode usage instead of block usage</td></tr>
+<tr><td><code>--total</code></td><td>Show grand total</td></tr></table>`,
+e:["df -h","df -T","df -h /home","df -i"],
+r:["du","free"],
+k:["disk","space","filesystem","usage","storage","free"]},
+{n:"du",o:["linux","macos"],s:"Estimate file and directory space usage",
+d:"Estimates disk space usage of files and directories recursively. Useful for finding large files and directories that consume significant storage space on the filesystem.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-h</code></td><td>Human-readable sizes</td></tr>
+<tr><td><code>-s</code></td><td>Summarize, show only total for each argument</td></tr>
+<tr><td><code>-a</code></td><td>Show count for all files, not just directories</td></tr>
+<tr><td><code>-d</code></td><td>Maximum depth of directory tree</td></tr>
+<tr><td><code>-c</code></td><td>Show grand total</td></tr></table>`,
+e:["du -sh /home/user","du -h --max-depth=1 /var","du -sh * | sort -rh","du -ch /var/log"],
+r:["df","ncdu"],
+k:["disk","usage","size","directory","storage","space"]},
+{n:"free",o:["linux","macos"],s:"Display memory usage statistics",
+d:"Shows the total, used, and available memory and swap space on the system. Provides a quick overview of system memory health and utilization for capacity monitoring.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-h</code></td><td>Human-readable output</td></tr>
+<tr><td><code>-m</code></td><td>Display in megabytes</td></tr>
+<tr><td><code>-g</code></td><td>Display in gigabytes</td></tr>
+<tr><td><code>-s</code></td><td>Repeat display every N seconds</td></tr>
+<tr><td><code>-t</code></td><td>Show total line</td></tr></table>`,
+e:["free -h","free -m","free -s 5","free -h -t"],
+r:["top","vmstat"],
+k:["memory","ram","free","swap","usage","system"]},
+{n:"uptime",o:["linux","macos"],s:"Show system uptime and load average",
+d:"Displays how long the system has been running, the number of users logged in, and system load averages for the past 1, 5, and 15 minutes.",
+t:`<table><tr><th>Output Field</th><th>Description</th></tr>
+<tr><td><code>Current time</code></td><td>Current system time</td></tr>
+<tr><td><code>Up</code></td><td>How long system has been running</td></tr>
+<tr><td><code>Users</code></td><td>Number of logged-in users</td></tr>
+<tr><td><code>Load average</code></td><td>1, 5, and 15 minute load averages</td></tr></table>`,
+e:["uptime","uptime -p","uptime -s"],
+r:["whoami","uname"],
+k:["uptime","system","time","load","running","status"]},
+{n:"uname",o:["linux","macos"],s:"Print system information",
+d:"Displays system information including kernel name, hostname, kernel release, kernel version, machine hardware, and operating system. Useful for system identification in scripts.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-a</code></td><td>All information (equivalent to -snrvmpio)</td></tr>
+<tr><td><code>-s</code></td><td>Kernel name</td></tr>
+<tr><td><code>-n</code></td><td>Network node hostname</td></tr>
+<tr><td><code>-r</code></td><td>Kernel release</td></tr>
+<tr><td><code>-v</code></td><td>Kernel version</td></tr>
+<tr><td><code>-m</code></td><td>Machine hardware name</td></tr>
+<tr><td><code>-o</code></td><td>Operating system</td></tr></table>`,
+e:["uname -a","uname -r","uname -m","uname -o"],
+r:["whoami","hostname"],
+k:["system","kernel","info","uname","hardware","os"]},
+{n:"whoami",o:["linux","macos"],s:"Display current username",
+d:"Prints the username associated with the current effective user ID. Simple but useful for confirming your identity when switching users or running commands with sudo.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>--help</code></td><td>Show help and exit</td></tr>
+<tr><td><code>--version</code></td><td>Show version information and exit</td></tr></table>`,
+e:["whoami","whoami /groups"],
+r:["id","logname","users"],
+k:["whoami","user","identity","username","current"]},
+{n:"sudo",o:["linux","macos"],s:"Execute commands as superuser",
+d:"Allows authorized users to run commands with the security privileges of the superuser (root). Essential for system administration tasks like installing software and modifying system files.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-u</code></td><td>Run command as specified user instead of root</td></tr>
+<tr><td><code>-i</code></td><td>Run login shell as target user</td></tr>
+<tr><td><code>-s</code></td><td>Run shell as target user</td></tr>
+<tr><td><code>-l</code></td><td>List user's privileges</td></tr>
+<tr><td><code>-k</code></td><td>Reset timestamp, require password next time</td></tr></table>`,
+e:["sudo apt update","sudo -u www ls /var/www","sudo -i","sudo !! (rerun last command with sudo)"],
+r:["su","chown"],
+k:["sudo","superuser","root","admin","privilege","elevate"]},
+{n:"crontab",o:["linux","macos"],s:"Schedule periodic tasks",
+d:"Manages cron jobs for scheduling commands to run automatically at specified times. Uses a time format of minute, hour, day of month, month, and day of week for flexible scheduling.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-e</code></td><td>Edit the crontab file</td></tr>
+<tr><td><code>-l</code></td><td>List current crontab entries</td></tr>
+<tr><td><code>-r</code></td><td>Remove current crontab</td></tr>
+<tr><td><code>-u</code></td><td>Manage crontab for specified user</td></tr></table>`,
+e:["crontab -e","crontab -l","crontab -r","echo '*/5 * * * * /script.sh' | crontab -"],
+r:["systemctl","at"],
+k:["cron","schedule","task","timer","automation","crontab","periodic"]},
+{n:"systemctl",o:["linux"],s:"Control systemd services and system",
+d:"Central command for managing systemd, the init system and service manager. Controls services, targets, timers, and system states like boot, shutdown, and power management.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>start</code></td><td>Start a service immediately</td></tr>
+<tr><td><code>stop</code></td><td>Stop a service immediately</td></tr>
+<tr><td><code>restart</code></td><td>Restart a service</td></tr>
+<tr><td><code>status</code></td><td>Show service status and recent logs</td></tr>
+<tr><td><code>enable</code></td><td>Enable service to start at boot</td></tr>
+<tr><td><code>disable</code></td><td>Disable service from starting at boot</td></tr>
+<tr><td><code>list-units</code></td><td>List active systemd units</td></tr>
+<tr><td><code>daemon-reload</code></td><td>Reload systemd configuration</td></tr></table>`,
+e:["systemctl start nginx","systemctl status sshd","systemctl enable docker","systemctl list-units --type=service"],
+r:["journalctl","service","init"],
+k:["systemd","service","systemctl","boot","start","stop","linux"]},
+{n:"journalctl",o:["linux"],s:"Query systemd journal logs",
+d:"Queries and displays logs collected by the systemd journal. Supports filtering by time, unit, priority, and boot session for comprehensive log analysis and troubleshooting.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-u</code></td><td>Show logs for specific systemd unit</td></tr>
+<tr><td><code>-f</code></td><td>Follow new log entries (like tail -f)</td></tr>
+<tr><td><code>-p</code></td><td>Filter by priority (err, warning, info, debug)</td></tr>
+<tr><td><code>-n</code></td><td>Number of recent entries to show</td></tr>
+<tr><td><code>-b</code></td><td>Show logs from current boot</td></tr>
+<tr><td><code>-o</code></td><td>Output format (json, verbose, short, etc.)</td></tr></table>`,
+e:["journalctl -u nginx.service","journalctl -f","journalctl -p err -b","journalctl --since '1 hour ago'"],
+r:["systemctl","dmesg"],
+k:["journal","logs","systemd","journalctl","system","debug"]},
+{n:"alias",o:["linux","macos"],s:"Create command shortcuts",
+d:"Creates shorthand aliases for longer commands to save typing and customize the shell environment. Aliases can be made permanent by adding them to shell configuration files.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-p</code></td><td>Print all defined aliases</td></tr>
+<tr><td><code>name='cmd'</code></td><td>Create alias (no flag, just assignment format)</td></tr></table>`,
+e:["alias ll='ls -la'","alias gs='git status'","alias ..='cd ..'","alias -p"],
+r:["export","source"],
+k:["alias","shortcut","command","shell","custom"]},
+{n:"history",o:["linux","macos"],s:"Show command history",
+d:"Displays the command history list for the current shell session. Supports searching, re-executing previous commands, and clearing the history for security or organization.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-c</code></td><td>Clear the history list</td></tr>
+<tr><td><code>-d</code></td><td>Delete specific history entry</td></tr>
+<tr><td><code>-w</code></td><td>Write history to file</td></tr>
+<tr><td><code>-a</code></td><td>Append current session to history file</td></tr></table>`,
+e:["history","history | grep git","!123 (rerun command #123)","history -c"],
+r:["fc","alias"],
+k:["history","command","past","recall","shell"]},
+{n:"export",o:["linux","macos"],s:"Set environment variables",
+d:"Sets environment variables for the current shell and all child processes. Essential for configuring PATH, application settings, and passing variables to subprocesses and scripts.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-p</code></td><td>Print all exported environment variables</td></tr>
+<tr><td><code>-n</code></td><td>Remove variable from export (unexport)</td></tr>
+<tr><td><code>-f</code></td><td>Export functions instead of variables</td></tr></table>`,
+e:["export PATH=$PATH:/usr/local/bin","export JAVA_HOME=/usr/lib/jvm/java-11","export -p","export MY_VAR='value'"],
+r:["env","source","alias"],
+k:["export","environment","variable","path","shell","config"]},
+{n:"source",o:["linux","macos"],s:"Execute commands from a file",
+d:"Reads and executes commands from a file in the current shell environment. Commonly used to reload shell configuration files like .bashrc or .zshrc after making changes.",
+t:`<table><tr><th>Equivalent</th><th>Description</th></tr>
+<tr><td><code>.</code></td><td>Dot command, same as source (e.g., . ~/.bashrc)</td></tr></table>`,
+e:["source ~/.bashrc","source venv/bin/activate","source ~/.profile","source script.sh"],
+r:["export","alias","bash"],
+k:["source","execute","file","shell","reload","config"]},
+{n:"clear",o:["linux","windows","macos"],s:"Clear terminal screen",
+d:"Clears all text from the terminal screen, resetting the display to provide a clean working area. Also clears the scrollback buffer in most terminals.",
+t:`<table><tr><th>Note</th><th>Description</th></tr>
+<tr><td><code>Ctrl+L</code></td><td>Keyboard shortcut equivalent in most terminals</td></tr></table>`,
+e:["clear"],
+r:["reset"],
+k:["clear","screen","terminal","clean","reset"]},
+{n:"exit",o:["linux","windows","macos"],s:"Exit the shell or session",
+d:"Exits the current shell session or terminal window. When used in a script, terminates the script with an optional exit code value for parent processes.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>N</code></td><td>Exit with specified code N (0=success, non-zero=error)</td></tr></table>`,
+e:["exit","exit 0","exit 1"],
+r:["logout","quit"],
+k:["exit","quit","leave","shell","session","end","close"]},
+{n:"help",o:["linux","windows","macos"],s:"Display help information",
+d:"Shows help information about shell built-in commands. On Windows, provides extensive help for cmd.exe commands and PowerShell cmdlets with syntax details and examples.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>command</code></td><td>Show help for specific command</td></tr>
+<tr><td><code>--help</code></td><td>Common flag on Linux commands</td></tr></table>`,
+e:["help","help cd","help dir","command --help"],
+r:["man","whatis"],
+k:["help","assistance","guide","manual","commands"]},
+{n:"whatis",o:["linux","macos"],s:"Display one-line command descriptions",
+d:"Searches the manual page names and displays a brief one-line description for each matching command. Useful for quickly identifying what a command does without reading the full manual.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-r</code></td><td>Interpret pattern as regex</td></tr>
+<tr><td><code>-w</code></td><td>Interpret pattern as wildcard</td></tr>
+<tr><td><code>-l</code></td><td>Limit output to specified lines</td></tr></table>`,
+e:["whatis ls","whatis grep","whatis -r 'git.*'"],
+r:["man","apropos","help"],
+k:["whatis","describe","command","summary","manual"]},
+{n:"apt",o:["linux"],s:"Debian/Ubuntu package manager",
+d:"High-level command-line tool for managing Debian-based system packages. Handles package installation, removal, updates, and dependency resolution using the APT package management system.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>update</code></td><td>Update package index from sources</td></tr>
+<tr><td><code>install</code></td><td>Install one or more packages</td></tr>
+<tr><td><code>remove</code></td><td>Remove packages</td></tr>
+<tr><td><code>upgrade</code></td><td>Upgrade all upgradable packages</td></tr>
+<tr><td><code>search</code></td><td>Search for packages by keyword</td></tr>
+<tr><td><code>show</code></td><td>Show detailed package information</td></tr>
+<tr><td><code>autoremove</code></td><td>Remove orphaned dependencies</td></tr></table>`,
+e:["apt update","apt install nginx","apt search python","apt upgrade"],
+r:["apt-get","dpkg","yum","dnf","pacman"],
+k:["apt","package","install","debian","ubuntu","software","linux"]},
+{n:"yum",o:["linux"],s:"RHEL/CentOS package manager (legacy)",
+d:"The Yellowdog Updater Modified package manager for RPM-based distributions. Installs, updates, and removes packages on RHEL, CentOS 7, and older Fedora systems.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install packages</td></tr>
+<tr><td><code>remove</code></td><td>Remove packages</td></tr>
+<tr><td><code>update</code></td><td>Update all packages</td></tr>
+<tr><td><code>list</code></td><td>List available or installed packages</td></tr>
+<tr><td><code>search</code></td><td>Search package repository</td></tr>
+<tr><td><code>info</code></td><td>Show package information</td></tr></table>`,
+e:["yum install httpd","yum update","yum list installed","yum search nginx"],
+r:["dnf","apt","rpm"],
+k:["yum","package","install","rhel","centos","linux","software"]},
+{n:"dnf",o:["linux"],s:"RHEL/Fedora package manager (next-gen)",
+d:"The next-generation package manager for RPM-based distributions. Successor to YUM with improved performance, better dependency resolution, and full DNF API for scripting.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install packages</td></tr>
+<tr><td><code>remove</code></td><td>Remove packages</td></tr>
+<tr><td><code>update</code></td><td>Update all packages</td></tr>
+<tr><td><code>list</code></td><td>List packages</td></tr>
+<tr><td><code>search</code></td><td>Search for packages</td></tr>
+<tr><td><code>groupinstall</code></td><td>Install a package group</td></tr>
+<tr><td><code>history</code></td><td>Show transaction history</td></tr></table>`,
+e:["dnf install nginx","dnf update","dnf groupinstall 'Development Tools'","dnf history"],
+r:["yum","apt","rpm"],
+k:["dnf","package","install","fedora","rhel","linux"]},
+{n:"pacman",o:["linux"],s:"Arch Linux package manager",
+d:"The package manager for Arch Linux and its derivatives. Manages packages with a simple command syntax, supporting sync, local, and group operations with dependency resolution.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-S</code></td><td>Synchronize and install packages</td></tr>
+<tr><td><code>-R</code></td><td>Remove packages</td></tr>
+<tr><td><code>-U</code></td><td>Upgrade or install local package file</td></tr>
+<tr><td><code>-Q</code></td><td>Query package database</td></tr>
+<tr><td><code>-Ss</code></td><td>Search repositories</td></tr>
+<tr><td><code>-Sy</code></td><td>Refresh package database</td></tr></table>`,
+e:["pacman -S nginx","pacman -Sy","pacman -Rns firefox","pacman -Qs python"],
+r:["yay","apt","dnf"],
+k:["pacman","arch","package","install","linux"]},
+{n:"brew",o:["macos"],s:"Homebrew package manager for macOS",
+d:"The popular package manager for macOS that installs open-source software not included with the operating system. Manages packages, formulas, casks, and dependencies from the command line.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install a formula or cask</td></tr>
+<tr><td><code>uninstall</code></td><td>Uninstall a formula</td></tr>
+<tr><td><code>update</code></td><td>Update Homebrew and formula metadata</td></tr>
+<tr><td><code>upgrade</code></td><td>Upgrade installed formulas</td></tr>
+<tr><td><code>list</code></td><td>List installed formulas</td></tr>
+<tr><td><code>search</code></td><td>Search for formulas</td></tr>
+<tr><td><code>info</code></td><td>Show formula information</td></tr></table>`,
+e:["brew install wget","brew update && brew upgrade","brew search python","brew list"],
+r:["port","apt","choco"],
+k:["brew","homebrew","package","install","macos","formula"]},
+{n:"winget",o:["windows"],s:"Windows package manager",
+d:"The official Windows package manager client for installing, upgrading, and removing applications from the Windows Store and community repositories. Built into Windows 10 and 11.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install a package</td></tr>
+<tr><td><code>uninstall</code></td><td>Uninstall a package</td></tr>
+<tr><td><code>list</code></td><td>List installed packages</td></tr>
+<tr><td><code>search</code></td><td>Search for packages</td></tr>
+<tr><td><code>upgrade</code></td><td>Upgrade packages</td></tr>
+<tr><td><code>source</code></td><td>Manage package sources</td></tr></table>`,
+e:["winget install vscode","winget search python","winget list","winget upgrade --all"],
+r:["choco","scoop","msiexec"],
+k:["winget","windows","package","install","app","microsoft"]},
+{n:"choco",o:["windows"],s:"Chocolatey package manager",
+d:"A third-party package manager for Windows that automates software installation, updates, and management. Uses PowerShell infrastructure to install software from community and custom feeds.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install a package</td></tr>
+<tr><td><code>uninstall</code></td><td>Uninstall a package</td></tr>
+<tr><td><code>upgrade</code></td><td>Upgrade packages</td></tr>
+<tr><td><code>list</code></td><td>List local or remote packages</td></tr>
+<tr><td><code>search</code></td><td>Search for packages</td></tr>
+<tr><td><code>pin</code></td><td>Pin a package to prevent upgrade</td></tr></table>`,
+e:["choco install firefox","choco list --local","choco upgrade all","choco search nodejs"],
+r:["winget","scoop"],
+k:["choco","chocolatey","windows","package","install","software"]},
+{n:"npm",o:["linux","windows","macos"],s:"Node.js package manager",
+d:"The official package manager for Node.js, managing dependencies for JavaScript projects. Installs, publishes, and manages modules from the npm registry with version control and scripting.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install packages from package.json or registry</td></tr>
+<tr><td><code>run</code></td><td>Run scripts defined in package.json</td></tr>
+<tr><td><code>publish</code></td><td>Publish package to registry</td></tr>
+<tr><td><code>update</code></td><td>Update packages</td></tr>
+<tr><td><code>audit</code></td><td>Audit packages for security vulnerabilities</td></tr>
+<tr><td><code>list</code></td><td>List installed packages</td></tr>
+<tr><td><code>init</code></td><td>Create package.json</td></tr>
+<tr><td><code>outdated</code></td><td>Show outdated packages</td></tr></table>`,
+e:["npm install express","npm run dev","npm audit fix","npm publish"],
+r:["pip","yarn","node"],
+k:["npm","node","package","javascript","install","module"]},
+{n:"pip",o:["linux","windows","macos"],s:"Python package installer",
+d:"The standard package installer for Python, managing libraries from the Python Package Index (PyPI). Installs, upgrades, and manages dependencies for Python projects.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>install</code></td><td>Install Python packages</td></tr>
+<tr><td><code>uninstall</code></td><td>Remove packages</td></tr>
+<tr><td><code>list</code></td><td>List installed packages</td></tr>
+<tr><td><code>freeze</code></td><td>Output installed packages in requirements format</td></tr>
+<tr><td><code>show</code></td><td>Show package information</td></tr>
+<tr><td><code>search</code></td><td>Search PyPI for packages</td></tr>
+<tr><td><code>install -r</code></td><td>Install from requirements.txt</td></tr></table>`,
+e:["pip install requests","pip install -r requirements.txt","pip list --outdated","pip uninstall numpy"],
+r:["pip3","npm","python"],
+k:["pip","python","package","install","module","library"]},
+{n:"python",o:["linux","windows","macos"],s:"Python interpreter",
+d:"An interpreted, high-level programming language interpreter. Runs Python scripts, opens an interactive REPL, and can execute code directly from command-line arguments.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-c</code></td><td>Execute Python code as a string</td></tr>
+<tr><td><code>-m</code></td><td>Run library module as a script</td></tr>
+<tr><td><code>-i</code></td><td>Start interactive session after script execution</td></tr>
+<tr><td><code>-V</code></td><td>Show Python version</td></tr>
+<tr><td><code>-h</code></td><td>Show help</td></tr>
+<tr><td><code>-B</code></td><td>Don't write .pyc files</td></tr></table>`,
+e:["python script.py","python -c 'print(\"hello\")'","python -m http.server 8000","python -V"],
+r:["pip","python3","node"],
+k:["python","interpreter","script","language","programming","run"]},
+{n:"node",o:["linux","windows","macos"],s:"Node.js JavaScript runtime",
+d:"A JavaScript runtime built on Chrome's V8 engine for building server-side applications. Runs JavaScript files, provides an interactive REPL, and is the foundation for modern web development.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-e</code></td><td>Evaluate JavaScript from command line</td></tr>
+<tr><td><code>-p</code></td><td>Evaluate and print result</td></tr>
+<tr><td><code>--version</code></td><td>Show Node.js version</td></tr>
+<tr><td><code>--inspect</code></td><td>Enable inspector for debugging</td></tr>
+<tr><td><code>--watch</code></td><td>Watch files and restart on changes</td></tr></table>`,
+e:["node app.js","node -e 'console.log(\"hello\")'","node --version","node --inspect server.js"],
+r:["npm","python"],
+k:["node","javascript","runtime","server","js"]},
+{n:"make",o:["linux","macos"],s:"GNU build automation tool",
+d:"Automates the build process for software projects using Makefile rules. Determines which files need to be recompiled based on dependency analysis and timestamps for efficient builds.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-j</code></td><td>Run N jobs in parallel for faster builds</td></tr>
+<tr><td><code>-C</code></td><td>Change to directory before reading Makefile</td></tr>
+<tr><td><code>-f</code></td><td>Use specified file as Makefile</td></tr>
+<tr><td><code>-B</code></td><td>Force rebuild regardless of timestamps</td></tr>
+<tr><td><code>-k</code></td><td>Keep going even if some targets fail</td></tr></table>`,
+e:["make","make install","make -j4","make clean"],
+r:["cmake","gcc","g++"],
+k:["make","build","compile","automation","c","software"]},
+{n:"rsync",o:["linux","macos"],s:"Remote file sync and transfer",
+d:"Fast and versatile file synchronization and transfer tool that copies only differences between source and destination. Supports local, remote (over SSH), and incremental backups with compression.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-a</code></td><td>Archive mode, recursive with permissions preserved</td></tr>
+<tr><td><code>-v</code></td><td>Verbose output</td></tr>
+<tr><td><code>-z</code></td><td>Compress data during transfer</td></tr>
+<tr><td><code>-P</code></td><td>Show progress and keep partial files</td></tr>
+<tr><td><code>--delete</code></td><td>Delete extraneous files at destination</td></tr>
+<tr><td><code>--exclude</code></td><td>Exclude files matching pattern</td></tr></table>`,
+e:["rsync -avz source/ dest/","rsync -avz /local/dir user@host:/remote/dir","rsync -avP --delete /backup/ /media/backup/","rsync -av --exclude='*.tmp' src/ dst/"],
+r:["scp","cp","tar"],
+k:["rsync","sync","backup","transfer","remote","incremental"]},
+{n:"nmap",o:["linux","macos"],s:"Network exploration and security scanner",
+d:"Discovers hosts and services on a computer network by sending packets and analyzing responses. Used for network inventory, security auditing, and finding open ports and running services.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-sS</code></td><td>TCP SYN scan (stealth scan)</td></tr>
+<tr><td><code>-sT</code></td><td>TCP connect scan</td></tr>
+<tr><td><code>-sU</code></td><td>UDP scan</td></tr>
+<tr><td><code>-p</code></td><td>Specify port range to scan</td></tr>
+<tr><td><code>-A</code></td><td>Aggressive scan: OS detection, version, scripts</td></tr>
+<tr><td><code>-O</code></td><td>Operating system detection</td></tr>
+<tr><td><code>-v</code></td><td>Verbose output</td></tr></table>`,
+e:["nmap -sS 192.168.1.1","nmap -p 80,443 example.com","nmap -A 192.168.1.0/24","nmap -sV --script=default localhost"],
+r:["ping","netstat","ip"],
+k:["nmap","network","scan","port","security","explore"]},
+{n:"netstat",o:["linux","macos"],s:"Network statistics and connections",
+d:"Displays network connections, routing tables, interface statistics, masquerade connections, and multicast memberships. Essential for network diagnostics and monitoring active connections.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-a</code></td><td>Show all listening and connected sockets</td></tr>
+<tr><td><code>-t</code></td><td>Show TCP connections only</td></tr>
+<tr><td><code>-u</code></td><td>Show UDP connections only</td></tr>
+<tr><td><code>-n</code></td><td>Show numeric addresses instead of hostnames</td></tr>
+<tr><td><code>-l</code></td><td>Show only listening sockets</td></tr>
+<tr><td><code>-p</code></td><td>Show PID and program name</td></tr>
+<tr><td><code>-r</code></td><td>Show routing table</td></tr></table>`,
+e:["netstat -an","netstat -tulpn","netstat -r","netstat -i"],
+r:["ss","ip","nmap"],
+k:["network","statistics","connection","port","socket","tcp"]},
+{n:"ifconfig",o:["linux","macos"],s:"Configure network interfaces",
+d:"Displays and manages network interface configuration parameters including IP addresses, MAC addresses, MTU, and interface status. Legacy tool largely replaced by ip command on Linux.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-a</code></td><td>Show all interfaces including down ones</td></tr>
+<tr><td><code>up/down</code></td><td>Activate or deactivate interface</td></tr>
+<tr><td><code>inet</code></td><td>Show IPv4 address only</td></tr>
+<tr><td><code>inet6</code></td><td>Show IPv6 address only</td></tr>
+<tr><td><code>hw</code></td><td>Set hardware (MAC) address</td></tr>
+<tr><td><code>mtu</code></td><td>Set maximum transmission unit</td></tr></table>`,
+e:["ifconfig","ifconfig eth0","ifconfig eth0 up","ifconfig eth0 192.168.1.10 netmask 255.255.255.0"],
+r:["ip","ipconfig","netsh"],
+k:["interface","network","ip","mac","config","ifconfig"]},
+{n:"ip",o:["linux"],s:"Show and configure network devices",
+d:"The modern replacement for ifconfig, route, and netstat on Linux. Manages network interfaces, addresses, routes, tunnels, and namespaces with rich functionality and consistent syntax.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>addr</code></td><td>Show or modify IP addresses (ip addr)</td></tr>
+<tr><td><code>link</code></td><td>Show or modify network interfaces</td></tr>
+<tr><td><code>route</code></td><td>Show or modify routing table</td></tr>
+<tr><td><code>neigh</code></td><td>Show neighbor table (ARP cache)</td></tr>
+<tr><td><code>netns</code></td><td>Manage network namespaces</td></tr>
+<tr><td><code>tunnel</code></td><td>Manage IP tunnels</td></tr></table>`,
+e:["ip addr show","ip link set eth0 up","ip route show","ip neigh"],
+r:["ifconfig","netstat","ipconfig"],
+k:["ip","network","interface","route","address","linux"]},
+{n:"ipconfig",o:["windows"],s:"Windows network configuration tool",
+d:"Displays and manages Windows network interface configuration including IP addresses, DNS servers, and DHCP status. The primary Windows tool for network diagnostics and adapter management.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>/all</code></td><td>Show full configuration including DNS, MAC, DHCP</td></tr>
+<tr><td><code>/flushdns</code></td><td>Flush DNS resolver cache</td></tr>
+<tr><td><code>/release</code></td><td>Release DHCP-issued IP address</td></tr>
+<tr><td><code>/renew</code></td><td>Renew DHCP-issued IP address</td></tr>
+<tr><td><code>/displaydns</code></td><td>Display DNS resolver cache contents</td></tr>
+<tr><td><code>/registerdns</code></td><td>Refresh DHCP and re-register DNS</td></tr></table>`,
+e:["ipconfig","ipconfig /all","ipconfig /flushdns","ipconfig /release && ipconfig /renew"],
+r:["netsh","ifconfig","ip"],
+k:["ipconfig","network","ip","windows","dns","dhcp","adapter"]},
+{n:"netsh",o:["windows"],s:"Windows network shell utility",
+d:"A powerful command-line scripting utility for configuring and monitoring Windows networking components. Manages interfaces, firewall rules, Wi-Fi profiles, routing, and netsh trace.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>interface</code></td><td>Manage network interfaces and IP configuration</td></tr>
+<tr><td><code>firewall</code></td><td>Configure Windows Firewall rules</td></tr>
+<tr><td><code>wlan</code></td><td>Manage wireless network profiles</td></tr>
+<tr><td><code>trace</code></td><td>Start and stop network traces</td></tr>
+<tr><td><code>route</code></td><td>Manage routing table</td></tr>
+<tr><td><code>http</code></td><td>Manage HTTP listener and SSL certificates</td></tr></table>`,
+e:["netsh interface ip show config","netsh firewall show state","netsh wlan show profiles","netsh trace start capture=yes"],
+r:["ipconfig","netstat","ip"],
+k:["netsh","network","windows","firewall","wlan","interface"]},
+{n:"tasklist",o:["windows"],s:"Display running processes (Windows)",
+d:"Lists all currently running processes on Windows systems with information about PID, session name, memory usage, and process name. The Windows equivalent of the ps command on Unix.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>/M</code></td><td>Show DLL modules loaded in processes</td></tr>
+<tr><td><code>/V</code></td><td>Verbose output with additional details</td></tr>
+<tr><td><code>/SVC</code></td><td>Show services hosted in each process</td></tr>
+<tr><td><code>/FI</code></td><td>Filter processes by criteria (status, name, PID)</td></tr>
+<tr><td><code>/NH</code></td><td>Suppress column headers</td></tr></table>`,
+e:["tasklist","tasklist /FI 'STATUS eq running'","tasklist /SVC","tasklist /V"],
+r:["taskkill","ps","Get-Process"],
+k:["tasklist","process","windows","running","pid","list"]},
+{n:"taskkill",o:["windows"],s:"Terminate processes (Windows)",
+d:"Terminates running processes on Windows by PID or image name. The Windows equivalent of the kill command, supporting forceful termination and remote process management.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>/F</code></td><td>Forcefully terminate the process</td></tr>
+<tr><td><code>/IM</code></td><td>Specify image name (e.g., notepad.exe)</td></tr>
+<tr><td><code>/PID</code></td><td>Specify process ID to terminate</td></tr>
+<tr><td><code>/T</code></td><td>Terminate child processes as well</td></tr></table>`,
+e:["taskkill /F /PID 1234","taskkill /IM notepad.exe /F","taskkill /IM chrome.exe /T","taskkill /PID 1234 /PID 5678"],
+r:["tasklist","kill","Stop-Process"],
+k:["taskkill","kill","process","windows","terminate"]},
+{n:"systeminfo",o:["windows"],s:"Display Windows system configuration",
+d:"Shows comprehensive system information including OS version, hardware details, BIOS version, memory configuration, network adapters, installed hotfixes, and system uptime.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>/S</code></td><td>Specify remote system to query</td></tr>
+<tr><td><code>/U</code></td><td>User credentials for remote system</td></tr>
+<tr><td><code>/FO</code></td><td>Output format (TABLE, LIST, CSV)</td></tr>
+<tr><td><code>/NH</code></td><td>Suppress column headers in TABLE format</td></tr></table>`,
+e:["systeminfo","systeminfo /FO LIST","systeminfo /S remote-pc","systeminfo | find 'Total Physical Memory'"],
+r:["msinfo32","wmic"],
+k:["systeminfo","windows","system","info","configuration","hardware"]},
+{n:"Get-ChildItem",o:["windows"],s:"PowerShell directory listing",
+d:"PowerShell cmdlet that lists files and directories in a location. Supports rich filtering, recursive searching, and returns .NET objects for advanced pipeline processing unlike traditional ls.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-Path</code></td><td>Specify path to list</td></tr>
+<tr><td><code>-Recurse</code></td><td>Search subdirectories recursively</td></tr>
+<tr><td><code>-Filter</code></td><td>Filter by name with wildcards (efficient)</td></tr>
+<tr><td><code>-Depth</code></td><td>Limit recursion depth</td></tr>
+<tr><td><code>-Directory</code></td><td>Show only directories</td></tr>
+<tr><td><code>-File</code></td><td>Show only files</td></tr>
+<tr><td><code>-Hidden</code></td><td>Show hidden files</td></tr></table>`,
+e:["Get-ChildItem","Get-ChildItem -Recurse *.txt","Get-ChildItem -Directory","ls (alias)"],
+r:["ls","dir"],
+k:["Get-ChildItem","powershell","list","directory","files","gci"]},
+{n:"Select-String",o:["windows"],s:"PowerShell string search cmdlet",
+d:"PowerShell equivalent of grep that searches text in strings and files using regex patterns. Returns match objects with line numbers, filenames, and context for rich pipeline processing.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-Pattern</code></td><td>Regex pattern to match</td></tr>
+<tr><td><code>-Path</code></td><td>File path(s) to search</td></tr>
+<tr><td><code>-CaseSensitive</code></td><td>Case-sensitive matching</td></tr>
+<tr><td><code>-NotMatch</code></td><td>Return lines that don't match</td></tr>
+<tr><td><code>-AllMatches</code></td><td>Return all matches per line</td></tr>
+<tr><td><code>-Context</code></td><td>Show lines before and after match</td></tr>
+<tr><td><code>-SimpleMatch</code></td><td>Literal string match (not regex)</td></tr></table>`,
+e:["Select-String -Pattern 'error' -Path *.log","Get-ChildItem *.txt | Select-String 'TODO'","Select-String -SimpleMatch 'hello' file.txt"],
+r:["grep","findstr"],
+k:["Select-String","powershell","search","grep","text","regex"]},
+{n:"sw_vers",o:["macos"],s:"Show macOS version information",
+d:"Displays the macOS version number, build number, and product name. A simple command specific to macOS that provides quick system version identification without verbose tools.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-productName</code></td><td>Show product name (macOS)</td></tr>
+<tr><td><code>-productVersion</code></td><td>Show version number</td></tr>
+<tr><td><code>-buildVersion</code></td><td>Show build number</td></tr></table>`,
+e:["sw_vers","sw_vers -productVersion","sw_vers -buildVersion"],
+r:["system_profiler","uname"],
+k:["sw_vers","macos","version","system","apple"]},
+{n:"system_profiler",o:["macos"],s:"macOS system profiler",
+d:"Provides detailed hardware and software configuration information for Mac computers. Reports on hardware, network, software, and installed components with rich XML or text output.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-detailLevel</code></td><td>Set detail level (mini, basic, full)</td></tr>
+<tr><td><code>-xml</code></td><td>Output in XML format</td></tr>
+<tr><td><code>SPDataType</code></td><td>Specific data type: SPHardwareDataType, SPNetworkDataType, etc.</td></tr></table>`,
+e:["system_profiler","system_profiler SPHardwareDataType","system_profiler SPNetworkDataType -xml"],
+r:["sw_vers","uname"],
+k:["system_profiler","macos","hardware","software","profile","system"]},
+{n:"defaults",o:["macos"],s:"Read and write macOS user defaults",
+d:"Accesses the macOS user defaults system for reading and writing application preferences and system settings. Used for customizing macOS behavior through hidden settings and configuration tweaks.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>read</code></td><td>Read a default value</td></tr>
+<tr><td><code>write</code></td><td>Write a default value</td></tr>
+<tr><td><code>delete</code></td><td>Delete a default value</td></tr>
+<tr><td><code>-g</code></td><td>Access the global (NSGlobalDomain) domain</td></tr>
+<tr><td><code>-type</code></td><td>Specify value type (string, int, bool, float)</td></tr>
+<tr><td><code>domains</code></td><td>List all domains with defaults</td></tr></table>`,
+e:["defaults read com.apple.finder","defaults write com.apple.dock autohide -bool true","defaults -g"],
+r:["plutil","PlistBuddy"],
+k:["defaults","macos","preferences","settings","plist","userdefaults"]},
+{n:"diskutil",o:["macos"],s:"Manage disk volumes and partitions",
+d:"Manages local disks and volumes on macOS including listing, formatting, partitioning, mounting, un-mounting, and repairing disks. The primary command-line tool for disk management.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>list</code></td><td>List all disks and partitions</td></tr>
+<tr><td><code>info</code></td><td>Show detailed disk information</td></tr>
+<tr><td><code>mount</code></td><td>Mount a volume</td></tr>
+<tr><td><code>unmount</code></td><td>Unmount a volume</td></tr>
+<tr><td><code>eraseDisk</code></td><td>Erase and format a disk</td></tr>
+<tr><td><code>verifyDisk</code></td><td>Verify disk integrity</td></tr>
+<tr><td><code>repairDisk</code></td><td>Repair a damaged disk</td></tr></table>`,
+e:["diskutil list","diskutil info /dev/disk0","diskutil unmount /Volumes/Backup","diskutil eraseDisk APFS MacintoshHD disk0"],
+r:["df","hdiutil"],
+k:["diskutil","macos","disk","volume","partition","format"]},
+{n:"launchctl",o:["macos"],s:"Manage macOS launchd services",
+d:"Controls the macOS launchd service management framework for loading, unloading, starting, and stopping system and user daemons and agents defined in plist configuration files.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>load</code></td><td>Load a launchd plist file</td></tr>
+<tr><td><code>unload</code></td><td>Unload a launchd plist file</td></tr>
+<tr><td><code>start</code></td><td>Start a loaded service</td></tr>
+<tr><td><code>stop</code></td><td>Stop a running service</td></tr>
+<tr><td><code>list</code></td><td>List loaded services</td></tr>
+<tr><td><code>kickstart</code></td><td>Force restart a service immediately</td></tr></table>`,
+e:["launchctl list","launchctl load ~/Library/LaunchAgents/myapp.plist","launchctl start com.example.app","launchctl unload -w /System/Library/LaunchDaemons/ssh.plist"],
+r:["systemctl","service"],
+k:["launchctl","macos","service","daemon","launchd","agent"]},
+{n:"openssl",o:["linux","macos"],s:"OpenSSL cryptography toolkit",
+d:"A robust cryptography toolkit for SSL/TLS protocols, certificate management, encryption, decryption, hashing, and key generation. Essential for managing digital certificates and secure communications.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>genrsa</code></td><td>Generate RSA private key</td></tr>
+<tr><td><code>req</code></td><td>Create and process certificate requests (CSR)</td></tr>
+<tr><td><code>x509</code></td><td>Display and manage X.509 certificates</td></tr>
+<tr><td><code>s_client</code></td><td>Test SSL/TLS connections (like curl over SSL)</td></tr>
+<tr><td><code>enc</code></td><td>Symmetric encryption/decryption</td></tr>
+<tr><td><code>dgst</code></td><td>Compute message digests (SHA, MD5, etc.)</td></tr>
+<tr><td><code>verify</code></td><td>Verify certificate chain</td></tr></table>`,
+e:["openssl genrsa -out key.pem 2048","openssl req -new -key key.pem -out cert.csr","openssl s_client -connect example.com:443","openssl x509 -in cert.pem -text -noout"],
+r:["ssh","curl","gpg"],
+k:["openssl","ssl","tls","certificate","encryption","crypto","security"]},
+{n:"screen",o:["linux","macos"],s:"Terminal multiplexer",
+d:"A full-screen window manager that multiplexes a physical terminal between several processes. Allows detaching and reattaching sessions, making it ideal for remote servers and long-running tasks.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>-S</code></td><td>Create a new session with a name</td></tr>
+<tr><td><code>-d -r</code></td><td>Detach and reattach from another terminal</td></tr>
+<tr><td><code>-ls</code></td><td>List running screen sessions</td></tr>
+<tr><td><code>-X</code></td><td>Send command to a session (e.g., quit)</td></tr>
+<tr><td><code>Ctrl+A d</code></td><td>Detach from current session</td></tr>
+<tr><td><code>Ctrl+A c</code></td><td>Create new window</td></tr></table>`,
+e:["screen -S my_session","screen -d -r","screen -ls","screen -X -S session quit"],
+r:["tmux","byobu"],
+k:["screen","terminal","multiplexer","session","detach","remote"]},
+{n:"tmux",o:["linux","macos"],s:"Terminal multiplexer (modern)",
+d:"A modern terminal multiplexer allowing multiple terminal sessions in a single window. Features session persistence, window splitting, pane management, and customizable key bindings.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>new</code></td><td>Create a new session</td></tr>
+<tr><td><code>new-session -s</code></td><td>Create named session</td></tr>
+<tr><td><code>ls</code></td><td>List sessions</td></tr>
+<tr><td><code>attach</code></td><td>Attach to existing session</td></tr>
+<tr><td><code>kill-session</code></td><td>Kill a session</td></tr>
+<tr><td><code>split-window</code></td><td>Split pane horizontally or vertically</td></tr>
+<tr><td><code>Ctrl+b c</code></td><td>Create new window</td></tr>
+<tr><td><code>Ctrl+b ,</code></td><td>Rename current window</td></tr></table>`,
+e:["tmux new -s mysession","tmux ls","tmux attach -t mysession","tmux new-session -s dev \; split-window -h \; split-window -v"],
+r:["screen","byobu"],
+k:["tmux","terminal","multiplexer","session","pane","window"]},
+{n:"vagrant",o:["linux","windows","macos"],s:"Virtual machine environment manager",
+d:"Manages reproducible and portable development environments using virtual machines. Provides consistent workflows for creating, configuring, and sharing VM environments across teams.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>init</code></td><td>Initialize a new Vagrant environment</td></tr>
+<tr><td><code>up</code></td><td>Start and provision the VM</td></tr>
+<tr><td><code>halt</code></td><td>Stop the VM</td></tr>
+<tr><td><code>ssh</code></td><td>SSH into the running VM</td></tr>
+<tr><td><code>destroy</code></td><td>Remove all VM resources</td></tr>
+<tr><td><code>status</code></td><td>Show VM status</td></tr>
+<tr><td><code>provision</code></td><td>Run provisioners on the VM</td></tr>
+<tr><td><code>package</code></td><td>Package VM into a reusable box</td></tr></table>`,
+e:["vagrant init ubuntu/focal64","vagrant up","vagrant ssh","vagrant destroy -f"],
+r:["docker","virsh","wsl"],
+k:["vagrant","vm","virtual","machine","development","devops"]},
+{n:"virsh",o:["linux"],s:"Virtualization shell for libvirt",
+d:"Command-line interface for managing libvirt-based virtualization. Controls KVM/QEMU virtual machines, manages storage pools, networks, and hypervisor settings from CLI or script.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>list</code></td><td>List domains (VMs)</td></tr>
+<tr><td><code>start</code></td><td>Start a domain</td></tr>
+<tr><td><code>shutdown</code></td><td>Gracefully shut down a domain</td></tr>
+<tr><td><code>destroy</code></td><td>Forcefully stop a domain</td></tr>
+<tr><td><code>define</code></td><td>Define a domain from XML</td></tr>
+<tr><td><code>dumpxml</code></td><td>Show domain configuration XML</td></tr>
+<tr><td><code>pool-list</code></td><td>List storage pools</td></tr>
+<tr><td><code>net-list</code></td><td>List networks</td></tr></table>`,
+e:["virsh list --all","virsh start vm-name","virsh shutdown vm-name","virsh dumpxml vm-name > vm.xml"],
+r:["vagrant","docker","wsl"],
+k:["virsh","libvirt","kvm","qemu","virtualization","vm","linux"]},
+{n:"wsl",o:["windows"],s:"Windows Subsystem for Linux management",
+d:"Manages the Windows Subsystem for Linux including listing, installing, and configuring Linux distributions. Runs Linux binaries natively on Windows for development and cross-platform workflows.",
+t:`<table><tr><th>Flag</th><th>Description</th></tr>
+<tr><td><code>--list</code></td><td>List installed Linux distributions</td></tr>
+<tr><td><code>--install</code></td><td>Install a Linux distribution</td></tr>
+<tr><td><code>--set-default</code></td><td>Set default Linux distribution</td></tr>
+<tr><td><code>--set-version</code></td><td>Convert between WSL 1 and 2</td></tr>
+<tr><td><code>--export</code></td><td>Export distribution to tar file</td></tr>
+<tr><td><code>--import</code></td><td>Import distribution from tar file</td></tr>
+<tr><td><code>--terminate</code></td><td>Stop running distribution</td></tr></table>`,
+e:["wsl --list --verbose","wsl --install -d Ubuntu","wsl --set-default-version 2","wsl --export Ubuntu backup.tar"],
+r:["bash","docker"],
+k:["wsl","windows","linux","subsystem","bash","ubuntu"],
+}];
+function ot(cmd){return cmd.o||[]}
+function hasOS(cmd,os){return ot(cmd).includes(os)}
+let hist=[];let hi=0;let phr="";
+const inp=document.getElementById('input');
+const out=document.getElementById('output');
+const ac=document.getElementById('autocomplete');
+let acIdx=-1;let acItems=[];
+function el(t,c){let e=document.createElement(t);if(c)for(let k in c)e[k]=c[k];return e}
+function a(t){out.appendChild(t);out.scrollTop=out.scrollHeight}
+function osBadge(o){let m={linux:'<span class="os-badge os-linux">Lnx</span>',windows:'<span class="os-badge os-windows">Win</span>',macos:'<span class="os-badge os-macos">Mac</span>'};return o.map(x=>m[x]||'').join('')}
+function showWelcome(){
+addLine('<div class="msg">Welcome to cmdOS v2.0 — Terminal CLI Reference</div>');
+addLine('<div class="info-line">Type a command name, ask a question in natural language, or try "help".</div>');
+addLine('<div class="popular-title">Popular Commands</div>');
+let pop=['ls','cd','grep','git','docker','ssh','ping','curl','man','python'];
+let cards=[];
+for(let c of C){
+if(pop.includes(c.n)){
+let co=ot(c);
+cards.push(`<div class="cmd-card" data-cmd="${c.n}"><div class="card-name">${c.n}</div><div class="card-syn">${c.s}</div><div class="card-os">${osBadge(co)}</div></div>`);
+}
+}
+addLine(`<div class="cmd-grid">${cards.join('')}</div>`);
+addLine('<div class="info-line">Use ↑/↓ for history, Tab for completion, click cards for details.</div>');
+}
+function addLine(h,raw){
+let d=el('div');
+if(raw){d.innerHTML=h}else{
+let m=el('div','__html');m.innerHTML=h;while(m.firstChild)d.appendChild(m.firstChild);
+}
+d.className='oline';
+if(typeof h==='string'&&h.includes('cmd-card'))d.className='oline welcome';
+a(d);return d
+}
+function addText(t){let d=el('div');d.className='oline';d.textContent=t;a(d);return d}
+function renderCmd(cmd){
+let co=ot(cmd);let b=[];
+b.push(`<div class="cmdname">${cmd.n} <span class="os-tags">${osBadge(co)}</span></div>`);
+b.push(`<div class="synopsis">${cmd.s}</div>`);
+b.push(`<div class="desc">${cmd.d}</div>`);
+b.push(`<div class="section-title">Flags & Options</div>`);
+b.push(`<div class="detail">${cmd.t}</div>`);
+b.push(`<div class="section-title">Examples</div>`);
+b.push(`<div class="examples">${cmd.e.map(e=>`<span class="ex">${e}</span>`).join(' ')}</div>`);
+b.push(`<div class="section-title">Related Commands</div>`);
+b.push(`<div class="see">${cmd.r.map(r=>`<span class="see-tag" data-cmd="${r}">${r}</span>`).join(' ')}</div>`);
+return b.join('')
+}
+function showCmd(cmd){
+let lines=renderCmd(cmd).split('</div>').filter(l=>l.trim());
+let h='';let parts=renderCmd(cmd).match(/<div[^>]*>.*?(?:<\/div>)/gs)||[];
+for(let p of parts){addLine(p)}
+}
+function showCmds(cmds){
+if(cmds.length===0){
+addLine('<div class="error">No matching commands found. Try different keywords.</div>');return
+}
+let cards=cmds.map(c=>{
+let co=ot(c);
+return `<div class="cmd-card" data-cmd="${c.n}"><div class="card-name">${c.n}</div><div class="card-syn">${c.s}</div><div class="card-os">${osBadge(co)}</div></div>`;
+});
+addLine(`<div class="msg">Found ${cmds.length} command${cmds.length>1?'s':''}:</div>`);
+addLine(`<div class="cmd-grid">${cards.join('')}</div>`);
+}
+function search(q){
+q=q.toLowerCase().trim();
+if(!q)return showWelcome();
+if(q==='help'||q==='?'){showCmds(C.slice(0,20));return}
+if(q==='clear'){out.innerHTML='';return}
+if(q==='exit'||q==='quit'){addLine('<div class="msg">Type "clear" to clear the screen.</div>');return}
+if(q==='list'||q==='show all'||q==='all commands'||q==='commands'){
+showCmds(C);return
+}
+let exact=C.find(c=>c.n.toLowerCase()===q);
+if(exact){showCmd(exact);return}
+let partial=C.filter(c=>c.n.toLowerCase().startsWith(q));
+if(partial.length===1){showCmd(partial[0]);return}
+if(partial.length>1){showCmds(partial);return}
+let qWords=q.split(/\s+/).filter(w=>w.length>1);
+let targetOS=null;
+if(qWords.some(w=>/^(windows|win|wsl)$/.test(w)))targetOS='windows';
+if(qWords.some(w=>/^(linux|ubuntu|debian|centos|redhat|fedora|arch)$/.test(w)))targetOS='linux';
+if(qWords.some(w=>/^(mac|macos|osx|apple|darwin)$/.test(w)))targetOS='macos';
+let catWords={networking:['network','net','connect','port','ping','dns','ip','tcp','udp'],file:['file','files','copy','move','delete','remove','rename','permission'],disk:['disk','space','storage','partition','mount','volume'],process:['process','running','service','daemon','pid','kill'],package:['package','install','software','app','manager'],text:['text','search','grep','pattern','regex','replace'],system:['system','info','config','hardware','kernel','os']};
+let cats=[];
+for(let [cat,words]of Object.entries(catWords)){
+if(qWords.some(w=>words.includes(w)))cats.push(cat);
+}
+let scored=C.map(cmd=>{
+let score=0;
+let name=cmd.n.toLowerCase();
+let kw=cmd.k||[];
+let allText=[name,...kw,...cmd.s.toLowerCase().split(/\s+/)];
+for(let w of qWords){
+if(name===w)score+=10;
+else if(name.startsWith(w))score+=5;
+else if(name.includes(w))score+=3;
+for(let k of kw){
+if(k.includes(w))score+=4;
+else if(k.startsWith(w))score+=2;
+}
+}
+if(targetOS&&hasOS(cmd,targetOS))score+=15;
+for(let cat of cats){
+if(cat==='networking'&&kw.some(k=>/network|port|connect|dns|ip|tcp|ping/.test(k)))score+=8;
+if(cat==='file'&&kw.some(k=>/file|copy|move|delete|rename|permission/.test(k)))score+=8;
+if(cat==='disk'&&kw.some(k=>/disk|space|storage|partition|mount/.test(k)))score+=8;
+if(cat==='process'&&kw.some(k=>/process|service|daemon|pid|kill/.test(k)))score+=8;
+if(cat==='package'&&kw.some(k=>/package|install|software|app|manager/.test(k)))score+=8;
+if(cat==='text'&&kw.some(k=>/text|search|grep|pattern|regex/.test(k)))score+=8;
+if(cat==='system'&&kw.some(k=>/system|info|config|hardware/.test(k)))score+=8;
+}
+return{cmd,score};
+}).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+let results=scored.map(x=>x.cmd);
+if(results.length===0){
+let sug=C.filter(c=>c.n.startsWith(q[0])).slice(0,8);
+let html='<div class="error">No commands matched your query.';
+if(sug.length){html+=' Did you mean: '+sug.map(s=>`<span class="suggest" data-cmd="${s.n}">${s.n}</span>`).join(', ')+'?'}
+html+='</div>';
+addLine(html);return
+}
+if(results.length===1){showCmd(results[0]);return}
+showCmds(results.slice(0,24));
+}
+function doInput(v){
+if(!v||!v.trim())return;
+hist.push(v);hi=hist.length;
+addText('cmdos> '+v);
+search(v);
+inp.value='';hideAC();
+}
+function buildAC(q){
+if(!q||!q.trim()){hideAC();return}
+let l=q.toLowerCase().trim();
+let matches=C.filter(c=>c.n.toLowerCase().startsWith(l)).slice(0,12);
+if(matches.length===0||(matches.length===1&&matches[0].n.toLowerCase()===l)){hideAC();return}
+ac.innerHTML='';ac.style.display='block';acIdx=-1;acItems=matches;
+matches.forEach((c,i)=>{
+let d=el('div');d.className='ac-item';
+let n=el('span');n.className='ac-name';n.textContent=c.n;
+let o=el('span');o.className='ac-os';o.innerHTML=osBadge(ot(c));
+d.appendChild(n);d.appendChild(o);
+d.addEventListener('click',()=>{inp.value=c.n;hideAC();inp.focus()});
+d.addEventListener('mousedown',(e)=>e.preventDefault());
+d.dataset.idx=i;
+ac.appendChild(d);
+});
+acItems=matches;
+}
+function hideAC(){ac.style.display='none';ac.innerHTML='';acIdx=-1;acItems=[]}
+function selAC(n){
+if(!acItems.length)return;
+let items=ac.querySelectorAll('.ac-item');
+if(n<0)n=0;if(n>=items.length)n=items.length-1;
+items.forEach((e,i)=>e.classList.toggle('sel',i===n));
+acIdx=n;
+if(items[n]){items[n].scrollIntoView({block:'nearest'});inp.value=acItems[n].n}
+}
+function compAC(){
+if(acIdx>=0&&acIdx<acItems.length){inp.value=acItems[acIdx].n;hideAC();return}
+if(acItems.length===1){inp.value=acItems[0].n;hideAC()}
+}
+document.addEventListener('click',e=>{
+if(!e.target.closest('#inputbar'))hideAC();
+if(e.target.classList.contains('see-tag')||e.target.classList.contains('suggest')){
+let cmd=e.target.dataset.cmd;
+if(cmd){addText('cmdos> '+cmd);search(cmd);inp.focus()}
+}
+if(e.target.closest('.cmd-card')){
+let card=e.target.closest('.cmd-card');
+let cmd=card.dataset.cmd;
+if(cmd){addText('cmdos> '+cmd);search(cmd);inp.focus()}
+}
+});
+inp.addEventListener('keydown',e=>{
+if(e.key==='Enter'){e.preventDefault();doInput(inp.value)}
+else if(e.key==='ArrowUp'){e.preventDefault();if(hist.length){if(hi>0)hi--;inp.value=hist[hi]||'';inp.setSelectionRange(inp.value.length,inp.value.length)}}
+else if(e.key==='ArrowDown'){e.preventDefault();if(hi<hist.length-1){hi++;inp.value=hist[hi]||''}else{hi=hist.length;inp.value=''}}
+else if(e.key==='Tab'){e.preventDefault();compAC()}
+else if(e.key==='Escape'){hideAC();inp.blur();setTimeout(()=>inp.focus(),10)}
+});
+let dt;
+inp.addEventListener('input',()=>{clearTimeout(dt);dt=setTimeout(()=>buildAC(inp.value),100)});
+showWelcome();
+inp.focus();
+</script>
+</body>
+</html>
